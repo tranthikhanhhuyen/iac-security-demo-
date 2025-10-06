@@ -14,10 +14,10 @@ jobs:
           wget https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-linux-amd64
           sudo mv tfsec-linux-amd64 /usr/local/bin/tfsec
           sudo chmod +x /usr/local/bin/tfsec
-          tfsec --min-severity HIGH .
+          tfsec --severity-level=HIGH . 
       - name: Run Cloud Custodian (dry-run)
         run: |
           pip install c7n
-          mkdir -p policies
+          mkdir -p policies`  
           echo "policies: []" > policies/empty.yml
           custodian run --dryrun --output-dir=output policies/
