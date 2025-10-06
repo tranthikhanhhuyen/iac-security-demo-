@@ -1,0 +1,23 @@
+name: IaC Security Check
+
+on:
+  pull_request:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tfsec & Run tfsec
+        run: |
+          sudo apt-get update && sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-linux-amd64
+          sudo mv tfsec-linux-amd64 /usr/local/bin/tfsec
+          sudo chmod +x /usr/local/bin/tfsec
+          tfsec --min-severity HIGH .
+      - name: Run Cloud Custodian (dry-run)
+        run: |
+          pip install c7n
+          mkdir -p policies
+          echo "policies: []" > policies/empty.yml
+          custodian run --dryrun --output-dir=output policies/
