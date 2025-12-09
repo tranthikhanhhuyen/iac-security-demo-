@@ -1,0 +1,8 @@
+2025-12-09 11:23:03,870 INFO Starting CSPM simulation
+2025-12-09 11:23:03,871 INFO Remediation required for iam:root_account (CRITICAL)
+2025-12-09 11:23:03,872 INFO Auto-fix suppressed (auto_approve=False). Created ticket.
+2025-12-09 11:23:03,874 INFO Remediation required for s3:customer_data (CRITICAL)
+2025-12-09 11:23:03,874 INFO Auto-fix suppressed (auto_approve=False). Created ticket.
+2025-12-09 11:23:03,874 INFO Remediation required for ec2:web_prod_01 (HIGH)
+2025-12-09 11:23:03,874 INFO Auto-fix suppressed (auto_approve=False). Created ticket.
+2025-12-09 11:23:03,875 INFO Scanned 4 resources. Issues: 3. Fixed: 0. Compliance score: 25/100

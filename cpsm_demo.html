@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group 4 - Enterprise CSPM Dashboard</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* --- DESIGN SYSTEM --- */
+        :root {
+            --bg-dark: #09090b;
+            --bg-sidebar: #121215;
+            --bg-card: rgba(23, 23, 28, 0.7);
+            --bg-hover: rgba(255, 255, 255, 0.05);
+            
+            --primary: #6366f1; /* Indigo */
+            --primary-glow: rgba(99, 102, 241, 0.4);
+            
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            
+            --border: rgba(255, 255, 255, 0.08);
+            --glass: blur(12px);
+            --font-main: 'Inter', sans-serif;
+            --font-code: 'JetBrains Mono', monospace;
+        }
+
+        /* --- RESET & LAYOUT --- */
+        * { box-sizing: border-box; outline: none; scrollbar-width: thin; scrollbar-color: #333 transparent; }
+        body { margin: 0; font-family: var(--font-main); background-color: var(--bg-dark); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; background-image: radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08), transparent 25%), radial-gradient(circle at 85% 30%, rgba(239, 68, 68, 0.05), transparent 25%); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+        /* --- SIDEBAR --- */
+        .sidebar { width: 280px; background-color: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 20; }
+        .brand { padding: 30px 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+        .brand-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary), #a855f7); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px var(--primary-glow); }
+        .brand-text { font-weight: 700; font-size: 15px; letter-spacing: 0.5px; line-height: 1.2; }
+        .brand-text span { font-weight: 400; font-size: 12px; color: var(--text-muted); }
+
+        .nav-menu { list-style: none; padding: 24px 12px; margin: 0; flex: 1; }
+        .nav-item { margin-bottom: 4px; }
+        .nav-link { display: flex; align-items: center; padding: 12px 16px; color: var(--text-muted); text-decoration: none; border-radius: 8px; transition: all 0.2s ease; font-weight: 500; font-size: 14px; }
+        .nav-link i { width: 24px; font-size: 18px; margin-right: 8px; transition: 0.2s; }
+        .nav-link:hover { background-color: var(--bg-hover); color: white; }
+        .nav-link.active { background: rgba(99, 102, 241, 0.1); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.2); }
+        .nav-link.active i { color: var(--primary); text-shadow: 0 0 10px var(--primary-glow); }
+
+        /* --- MAIN CONTENT --- */
+        .main { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        
+        .header { height: 70px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 32px; backdrop-filter: var(--glass); background: rgba(9, 9, 11, 0.7); z-index: 10; }
+        .header-title h1 { margin: 0; font-size: 20px; font-weight: 600; }
+        .header-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+        .status-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; box-shadow: 0 0 8px var(--success); }
+
+        .user-profile { display: flex; align-items: center; gap: 16px; }
+        .icon-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; transition: 0.2s; position: relative; }
+        .icon-btn:hover { background: var(--bg-hover); color: white; }
+        .notif-badge { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: var(--danger); border-radius: 50%; border: 2px solid var(--bg-dark); }
+        .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(to right, #4f46e5, #9333ea); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; border: 2px solid rgba(255,255,255,0.1); }
+
+        /* --- CONTENT AREA --- */
+        .content { padding: 32px; overflow-y: auto; height: calc(100vh - 70px); }
+        .screen { display: none; animation: fadeIn 0.4s ease forwards; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- UI COMPONENTS --- */
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); backdrop-filter: blur(20px); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card-title { font-size: 16px; font-weight: 600; color: white; display: flex; align-items: center; gap: 10px; }
+        
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+        .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+
+        /* Badges */
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; gap: 6px; }
+        .bg-success { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); }
+        .bg-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+        .bg-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2); }
+        .bg-info { background: rgba(59, 130, 246, 0.1); color: var(--info); border: 1px solid rgba(59, 130, 246, 0.2); }
+
+        /* Data Tables */
+        .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        .data-table th { text-align: left; padding: 16px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: var(--bg-hover); }
+        .data-table tr:hover td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+        .data-table tr:hover td:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+        /* Buttons */
+        .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); }
+        .btn-primary:hover { background: #5558e6; transform: translateY(-1px); }
+        .btn-outline { background: transparent; border-color: var(--border); color: var(--text-muted); }
+        .btn-outline:hover { border-color: var(--text-muted); color: white; }
+        .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: rgba(239, 68, 68, 0.3); }
+        .btn-danger:hover { background: var(--danger); color: white; }
+
+        /* Toggles */
+        .toggle-switch { position: relative; width: 44px; height: 24px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .4s; border-radius: 34px; border: 1px solid var(--border); }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: #94a3b8; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--success); border-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(20px); background-color: white; }
+        /* Violation State */
+        .toggle-switch.violation input:not(:checked) + .slider { background-color: rgba(239, 68, 68, 0.2); border-color: var(--danger); }
+        .toggle-switch.violation input:not(:checked) + .slider:before { background-color: var(--danger); }
+
+        /* Automation Pipeline Viz */
+        .pipeline-wrapper { display: flex; justify-content: space-between; align-items: center; margin: 40px 0; position: relative; padding: 0 20px; }
+        .pipeline-track { position: absolute; top: 50%; left: 0; width: 100%; height: 4px; background: #27272a; z-index: 0; border-radius: 2px; }
+        .pipeline-progress { position: absolute; top: 50%; left: 0; width: 0%; height: 4px; background: var(--success); z-index: 0; transition: width 0.5s ease; border-radius: 2px; }
+        
+        .pipe-node { position: relative; z-index: 1; background: #18181b; border: 2px solid #3f3f46; width: 160px; padding: 16px; border-radius: 12px; text-align: center; transition: 0.3s; opacity: 0.5; }
+        .pipe-node.active { opacity: 1; border-color: var(--primary); box-shadow: 0 0 20px rgba(99, 102, 241, 0.2); transform: scale(1.05); }
+        .pipe-node.done { opacity: 1; border-color: var(--success); }
+        .pipe-node.error { opacity: 1; border-color: var(--danger); box-shadow: 0 0 20px rgba(239, 68, 68, 0.2); }
+        
+        .pipe-icon { font-size: 24px; margin-bottom: 8px; display: block; }
+        .pipe-label { font-weight: 600; font-size: 14px; display: block; }
+        .pipe-sub { font-size: 11px; color: var(--text-muted); }
+
+        /* Terminal */
+        .terminal { background: #0c0c0e; border-radius: 12px; border: 1px solid #333; font-family: var(--font-code); font-size: 12px; height: 350px; display: flex; flex-direction: column; overflow: hidden; }
+        .terminal-bar { background: #18181b; padding: 8px 16px; border-bottom: 1px solid #333; display: flex; gap: 8px; }
+        .t-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .terminal-content { padding: 16px; overflow-y: auto; flex: 1; color: #d4d4d8; }
+        .log { margin-bottom: 6px; opacity: 0; animation: slideIn 0.2s forwards; display: flex; gap: 10px; }
+        .log-ts { color: #52525b; min-width: 70px; }
+        @keyframes slideIn { from { transform: translateX(-10px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Modal */
+        .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 100; justify-content: center; align-items: center; }
+        .modal { background: #18181b; width: 900px; max-height: 90vh; border-radius: 16px; border: 1px solid #333; display: flex; flex-direction: column; box-shadow: 0 25px 50px rgba(0,0,0,0.5); animation: zoom 0.3s; }
+        @keyframes zoom { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-tabs { display: flex; background: #0f0f10; border-bottom: 1px solid #333; }
+        .mtab { padding: 16px 24px; cursor: pointer; color: var(--text-muted); font-size: 13px; border-bottom: 2px solid transparent; }
+        .mtab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; background: rgba(99, 102, 241, 0.05); }
+
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="brand">
+            <div class="brand-icon"><i class="fas fa-shield-halved text-white"></i></div>
+            <div class="brand-text">GROUP 4 CSPM<br><span>Ecommerce Security</span></div>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="#" class="nav-link active" onclick="nav('dashboard', this)"><i class="fas fa-grid-2"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="#" class="nav-link" onclick="nav('policies', this)"><i class="fas fa-file-shield"></i> Policies</a></li>
+            <li class="nav-item"><a href="#" class="nav-link" onclick="nav('s3', this)"><i class="fas fa-database"></i> S3 Inventory</a></li>
+            <li class="nav-item"><a href="#" class="nav-link" onclick="nav('automation', this)"><i class="fas fa-microchip"></i> DevSecOps</a></li>
+        </ul>
+        <div style="padding: 24px;">
+            <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Compliance Status</div>
+                <div style="font-size: 20px; font-weight: 700; color: white;">78% <span style="font-size: 12px; color: var(--warning); font-weight: 400;">(Needs Action)</span></div>
+                <div style="width: 100%; height: 4px; background: #333; margin-top: 8px; border-radius: 2px; overflow: hidden;">
+                    <div style="width: 78%; height: 100%; background: var(--warning);"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="header">
+            <div class="header-title">
+                <h1 id="page-title">Security Dashboard</h1>
+                <div class="header-meta">
+                    <span class="status-dot"></span> System Operational
+                    <span style="margin: 0 8px;">•</span>
+                    AWS (us-east-1) & Azure (East US)
+                </div>
+            </div>
+            <div class="user-profile">
+                <div class="icon-btn"><i class="fas fa-search"></i></div>
+                <div class="icon-btn"><span class="notif-badge"></span><i class="fas fa-bell"></i></div>
+                <div style="height: 24px; width: 1px; background: var(--border);"></div>
+                <div style="text-align: right;">
+                    <div style="font-size: 13px; font-weight: 600;">Admin User</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">SecOps Lead</div>
+                </div>
+                <div class="avatar">G4</div>
+            </div>
+        </div>
+
+        <div id="dashboard" class="content screen active">
+            <div class="grid-4" style="margin-bottom: 24px;">
+                <div class="card" style="margin:0; padding: 20px; display: flex; align-items: center; gap: 16px;">
+                    <div style="width: 48px; height: 48px; background: rgba(59, 130, 246, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--info); font-size: 20px;"><i class="fas fa-server"></i></div>
+                    <div>
+                        <div style="font-size: 24px; font-weight: 700;">1,248</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Total Assets</div>
+                    </div>
+                </div>
+                <div class="card" style="margin:0; padding: 20px; display: flex; align-items: center; gap: 16px;">
+                    <div style="width: 48px; height: 48px; background: rgba(239, 68, 68, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--danger); font-size: 20px;"><i class="fas fa-bug"></i></div>
+                    <div>
+                        <div style="font-size: 24px; font-weight: 700; color: var(--danger);">3 Critical</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Open Vulnerabilities</div>
+                    </div>
+                </div>
+                <div class="card" style="margin:0; padding: 20px; display: flex; align-items: center; gap: 16px;">
+                    <div style="width: 48px; height: 48px; background: rgba(16, 185, 129, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--success); font-size: 20px;"><i class="fas fa-wrench"></i></div>
+                    <div>
+                        <div style="font-size: 24px; font-weight: 700; color: var(--success);">42 Fixed</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Auto-Remediated (7d)</div>
+                    </div>
+                </div>
+                <div class="card" style="margin:0; padding: 20px; display: flex; align-items: center; gap: 16px;">
+                    <div style="width: 48px; height: 48px; background: rgba(245, 158, 11, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--warning); font-size: 20px;"><i class="fas fa-file-contract"></i></div>
+                    <div>
+                        <div style="font-size: 24px; font-weight: 700;">PCI-DSS</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Compliance Standard</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2-1">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><i class="fas fa-list-ul text-primary"></i> Recent Security Events</div>
+                        <button class="btn btn-outline">View All</button>
+                    </div>
+                    <table class="data-table">
+                        <thead><tr><th>Severity</th><th>Event Description</th><th>Resource</th><th>Time</th></tr></thead>
+                        <tbody>
+                            <tr><td><span class="badge bg-danger">Critical</span></td><td>Public Bucket Access</td><td>company-invoice-bucket</td><td>2m ago</td></tr>
+                            <tr><td><span class="badge bg-warning">High</span></td><td>MFA Missing on Root</td><td>AWS Root Account</td><td>15m ago</td></tr>
+                            <tr><td><span class="badge bg-warning">High</span></td><td>Port 22 Open (0.0.0.0)</td><td>prod-bastion-host</td><td>1h ago</td></tr>
+                            <tr><td><span class="badge bg-info">Medium</span></td><td>Unencrypted Volume</td><td>vol-0a1b2c3d4e</td><td>2h ago</td></tr>
+                            <tr><td><span class="badge bg-success">Info</span></td><td>Config Rule Added</td><td>CSPM-System</td><td>5h ago</td></tr>
+                            <tr><td><span class="badge bg-info">Medium</span></td><td>IAM Key Rotated</td><td>user-jenkins-bot</td><td>6h ago</td></tr>
+                            <tr><td><span class="badge bg-success">Info</span></td><td>Scan Completed</td><td>Azure Subscription</td><td>12h ago</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header"><div class="card-title">Assets by Region</div></div>
+                    <div style="height: 250px;"><canvas id="regionChart"></canvas></div>
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <span style="font-size: 13px; color: var(--text-muted);">AWS us-east-1</span>
+                            <span style="font-weight: 600;">64%</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="font-size: 13px; color: var(--text-muted);">Azure East US</span>
+                            <span style="font-weight: 600;">36%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="policies" class="content screen">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-gavel"></i> Global Security Policies (CIS Level 1)</div>
+                    <div style="display: flex; gap: 10px;">
+                        <span class="badge bg-success"><i class="fas fa-check"></i> 9 Active</span>
+                        <span class="badge bg-danger"><i class="fas fa-times"></i> 1 Violation</span>
+                    </div>
+                </div>
+
+                <table class="data-table">
+                    <thead><tr><th>Policy Name</th><th>Category</th><th>Standard Ref</th><th>State</th><th>Action</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>1. Enforce MFA for Console</strong><br><small class="text-muted">Require Multi-factor Auth</small></td>
+                            <td><span class="badge bg-info">IAM</span></td>
+                            <td>CIS 1.14</td>
+                            <td><label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label></td>
+                            <td><i class="fas fa-ellipsis-h text-muted"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>2. Rotate Access Keys (90d)</strong><br><small class="text-muted">Expire old keys</small></td>
+                            <td><span class="badge bg-info">IAM</span></td>
+                            <td>CIS 1.4</td>
+                            <td><label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label></td>
+                            <td><i class="fas fa-ellipsis-h text-muted"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>3. Hardware MFA for Root</strong><br><small class="text-muted">Physical token required</small></td>
+                            <td><span class="badge bg-info">IAM</span></td>
+                            <td>CIS 1.5</td>
+                            <td><label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label></td>
+                            <td><i class="fas fa-ellipsis-h text-muted"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>4. Strong Password Policy</strong><br><small class="text-muted">Min 14 chars, complexity</small></td>
+                            <td><span class="badge bg-info">IAM</span></td>
+                            <td>CIS 1.8</td>
+                            <td><label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label></td>
+                            <td><i class="fas fa-ellipsis-h text-muted"></i></td>
+                        </tr>
+                        <tr style="background: rgba(239, 68, 68, 0.05);">
+                            <td><strong style="color: var(--danger)">5. Restrict SSH (Port 22)</strong><br><small class="text-muted">Block 0.0.0.0/0 Ingress</small></td>
+                            <td><span class="badge bg-warning">Network</span></td>
+                            <td>CIS 4.1</td>
+                            <td><label class="toggle-switch violation"><input type="checkbox"><span class="slider"></span></label></td>
+                            <td><button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;">Fix</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>6. Enable VPC Flow Logs</strong><br><small class="text-muted">Capture network traffic</small></td>
+                            <td><span class="badge bg-warning">Network</span></td>
+                            <td>CIS 4.3</td>
+                            <td><label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label></td>
+                            <td><i class="fas fa-ellipsis-h text-muted"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>7. WAF Enabled on ALB</strong><br><small class="text-muted">Web Application Firewall</small></td>
+                            <td><span class="badge bg-warning">Network</span></td>
+                            <td>PCI 6.6</td>
+                            <td><label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label></td>
+                            <td><i class="fas fa-ellipsis-h text-muted"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>8. Encrypt Data at Rest</strong><br><small class="text-muted">AES-256 (KMS)</small></td>
+                            <td><span class="badge bg-success">Data</span></td>
+                            <td>NIST PR.DS-1</td>
+                            <td><label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label></td>
+                            <td><i class="fas fa-ellipsis-h text-muted"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>9. Enforce TLS 1.2+</strong><br><small class="text-muted">Data in Transit</small></td>
+                            <td><span class="badge bg-success">Data</span></td>
+                            <td>NIST PR.DS-2</td>
+                            <td><label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label></td>
+                            <td><i class="fas fa-ellipsis-h text-muted"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>10. Encrypt EBS Volumes</strong><br><small class="text-muted">Block unencrypted boot</small></td>
+                            <td><span class="badge bg-success">Data</span></td>
+                            <td>CIS 2.2.1</td>
+                            <td><label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label></td>
+                            <td><i class="fas fa-ellipsis-h text-muted"></i></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="s3" class="content screen">
+            <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+                <button class="btn btn-primary">All Buckets (10)</button>
+                <button class="btn btn-outline" style="border-color: var(--danger); color: var(--danger);">Critical (1)</button>
+                <button class="btn btn-outline" style="border-color: var(--warning); color: var(--warning);">High Risk (2)</button>
+            </div>
+
+            <div class="card" style="padding: 0; overflow: hidden;">
+                <table class="data-table">
+                    <thead><tr><th>Bucket Name</th><th>Classification</th><th>Public Access</th><th>Encryption</th><th>Versioning</th><th>Risk Level</th><th>Action</th></tr></thead>
+                    <tbody>
+                        <tr style="background: rgba(239, 68, 68, 0.08);">
+                            <td><i class="fab fa-aws text-warning"></i> <strong>company-invoice-bucket</strong></td>
+                            <td><span class="badge bg-danger">PCI-DSS</span></td>
+                            <td><span class="text-danger font-bold"><i class="fas fa-unlock"></i> Allowed</span></td>
+                            <td><span class="badge bg-success">SSE-KMS</span></td>
+                            <td><span class="badge bg-danger">Disabled</span></td>
+                            <td><span class="badge bg-danger">CRITICAL</span></td>
+                            <td><button onclick="openModal()" class="btn btn-danger" style="padding: 6px 12px;">Inspect</button></td>
+                        </tr>
+                        <tr>
+                            <td><i class="fab fa-aws text-warning"></i> <strong>app-logs-archive</strong></td>
+                            <td><span class="badge bg-info">Internal</span></td>
+                            <td><span class="badge bg-success">Blocked</span></td>
+                            <td><span class="badge bg-success">SSE-S3</span></td>
+                            <td><span class="badge bg-success">Enabled</span></td>
+                            <td><span class="badge bg-success">SECURE</span></td>
+                            <td><button class="btn btn-outline" style="padding: 6px 12px;">Details</button></td>
+                        </tr>
+                        <tr>
+                            <td><i class="fab fa-aws text-warning"></i> <strong>customer-pii-raw</strong></td>
+                            <td><span class="badge bg-danger">PII</span></td>
+                            <td><span class="badge bg-success">Blocked</span></td>
+                            <td><span class="badge bg-danger">None</span></td>
+                            <td><span class="badge bg-success">Enabled</span></td>
+                            <td><span class="badge bg-warning">HIGH</span></td>
+                            <td><button class="btn btn-outline" style="padding: 6px 12px;">Details</button></td>
+                        </tr>
+                         <tr>
+                            <td><i class="fab fa-aws text-warning"></i> <strong>static-frontend-assets</strong></td>
+                            <td><span class="badge bg-success">Public</span></td>
+                            <td><span class="badge bg-info">Read-Only</span></td>
+                            <td><span class="badge bg-success">SSE-S3</span></td>
+                            <td><span class="badge bg-success">Enabled</span></td>
+                            <td><span class="badge bg-success">SECURE</span></td>
+                            <td><button class="btn btn-outline" style="padding: 6px 12px;">Details</button></td>
+                        </tr>
+                        <tr>
+                            <td><i class="fab fa-aws text-warning"></i> <strong>dev-test-sandbox</strong></td>
+                            <td><span class="badge bg-info">Dev</span></td>
+                            <td><span class="badge bg-success">Blocked</span></td>
+                            <td><span class="badge bg-success">SSE-S3</span></td>
+                            <td><span class="badge bg-danger">Disabled</span></td>
+                            <td><span class="badge bg-warning">MEDIUM</span></td>
+                            <td><button class="btn btn-outline" style="padding: 6px 12px;">Details</button></td>
+                        </tr>
+                        <tr>
+                            <td><i class="fab fa-aws text-warning"></i> <strong>finance-backup-2024</strong></td>
+                            <td><span class="badge bg-danger">Confidential</span></td>
+                            <td><span class="badge bg-success">Blocked</span></td>
+                            <td><span class="badge bg-success">SSE-KMS</span></td>
+                            <td><span class="badge bg-success">Enabled</span></td>
+                            <td><span class="badge bg-success">SECURE</span></td>
+                            <td><button class="btn btn-outline" style="padding: 6px 12px;">Details</button></td>
+                        </tr>
+                        <tr>
+                            <td><i class="fab fa-aws text-warning"></i> <strong>marketing-campaign-media</strong></td>
+                            <td><span class="badge bg-info">Internal</span></td>
+                            <td><span class="badge bg-success">Blocked</span></td>
+                            <td><span class="badge bg-success">SSE-S3</span></td>
+                            <td><span class="badge bg-danger">Disabled</span></td>
+                            <td><span class="badge bg-info">LOW</span></td>
+                            <td><button class="btn btn-outline" style="padding: 6px 12px;">Details</button></td>
+                        </tr>
+                         <tr>
+                            <td><i class="fab fa-aws text-warning"></i> <strong>hr-employee-records</strong></td>
+                            <td><span class="badge bg-danger">PII</span></td>
+                            <td><span class="badge bg-success">Blocked</span></td>
+                            <td><span class="badge bg-success">SSE-KMS</span></td>
+                            <td><span class="badge bg-success">Enabled</span></td>
+                            <td><span class="badge bg-success">SECURE</span></td>
+                            <td><button class="btn btn-outline" style="padding: 6px 12px;">Details</button></td>
+                        </tr>
+                        <tr>
+                            <td><i class="fab fa-aws text-warning"></i> <strong>legacy-app-data</strong></td>
+                            <td><span class="badge bg-warning">Deprecated</span></td>
+                            <td><span class="badge bg-success">Blocked</span></td>
+                            <td><span class="badge bg-danger">None</span></td>
+                            <td><span class="badge bg-danger">Disabled</span></td>
+                            <td><span class="badge bg-warning">HIGH</span></td>
+                            <td><button class="btn btn-outline" style="padding: 6px 12px;">Details</button></td>
+                        </tr>
+                         <tr>
+                            <td><i class="fab fa-aws text-warning"></i> <strong>ml-training-dataset</strong></td>
+                            <td><span class="badge bg-info">Internal</span></td>
+                            <td><span class="badge bg-success">Blocked</span></td>
+                            <td><span class="badge bg-success">SSE-S3</span></td>
+                            <td><span class="badge bg-danger">Disabled</span></td>
+                            <td><span class="badge bg-warning">MEDIUM</span></td>
+                            <td><button class="btn btn-outline" style="padding: 6px 12px;">Details</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="automation" class="content screen">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-rocket"></i> CI/CD Security Pipeline</div>
+                    <div style="display: flex; gap: 12px;">
+                        <button onclick="runPipeline('fail')" class="btn btn-danger"><i class="fas fa-bug"></i> Test Fail</button>
+                        <button onclick="runPipeline('pass')" class="btn btn-primary"><i class="fas fa-check"></i> Test Pass</button>
+                    </div>
+                </div>
+
+                <div class="pipeline-wrapper">
+                    <div class="pipeline-track"></div>
+                    <div class="pipeline-progress" id="pipe-bar"></div>
+                    
+                    <div class="pipe-node" id="node-commit">
+                        <i class="fas fa-code-commit pipe-icon"></i>
+                        <span class="pipe-label">Commit</span>
+                        <span class="pipe-sub">GitHub</span>
+                    </div>
+                    <div class="pipe-node" id="node-build">
+                        <i class="fas fa-box pipe-icon"></i>
+                        <span class="pipe-label">Build</span>
+                        <span class="pipe-sub">Terraform Plan</span>
+                    </div>
+                    <div class="pipe-node" id="node-scan">
+                        <i class="fas fa-shield-virus pipe-icon"></i>
+                        <span class="pipe-label">Scan</span>
+                        <span class="pipe-sub">Checkov / TFSec</span>
+                    </div>
+                    <div class="pipe-node" id="node-deploy">
+                        <i class="fas fa-cloud-upload-alt pipe-icon"></i>
+                        <span class="pipe-label">Deploy</span>
+                        <span class="pipe-sub">AWS Apply</span>
+                    </div>
+                </div>
+
+                <div class="grid-2-1">
+                    <div>
+                        <div class="terminal">
+                            <div class="terminal-bar">
+                                <div class="t-dot" style="background:#ff5f56"></div>
+                                <div class="t-dot" style="background:#ffbd2e"></div>
+                                <div class="t-dot" style="background:#27c93f"></div>
+                                <span style="margin-left:8px; color:#555;">jenkins-agent — zsh</span>
+                            </div>
+                            <div class="terminal-content" id="terminal">
+                                <div class="log"><span class="log-ts">[Ready]</span><span>Waiting for job...</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: #121215; border: 1px solid #333; border-radius: 12px; padding: 16px; overflow-y: auto; max-height: 350px;">
+                        <h4 style="margin: 0 0 16px 0; font-size: 14px; color: white;">Pipeline History</h4>
+                        <table class="data-table" style="font-size: 12px;">
+                            <thead><tr><th>ID</th><th>Branch</th><th>Result</th></tr></thead>
+                            <tbody>
+                                <tr><td>#1024</td><td>feat/auth</td><td><span class="badge bg-success">PASS</span></td></tr>
+                                <tr><td>#1023</td><td>fix/s3-pol</td><td><span class="badge bg-danger">FAIL</span></td></tr>
+                                <tr><td>#1022</td><td>dev</td><td><span class="badge bg-success">PASS</span></td></tr>
+                                <tr><td>#1021</td><td>dev</td><td><span class="badge bg-success">PASS</span></td></tr>
+                                <tr><td>#1020</td><td>feat/ui</td><td><span class="badge bg-danger">FAIL</span></td></tr>
+                                <tr><td>#1019</td><td>main</td><td><span class="badge bg-success">PASS</span></td></tr>
+                                <tr><td>#1018</td><td>main</td><td><span class="badge bg-success">PASS</span></td></tr>
+                                <tr><td>#1017</td><td>chore/deps</td><td><span class="badge bg-success">PASS</span></td></tr>
+                                <tr><td>#1016</td><td>feat/api</td><td><span class="badge bg-danger">FAIL</span></td></tr>
+                                <tr><td>#1015</td><td>main</td><td><span class="badge bg-success">PASS</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="modal-bg" id="modal">
+        <div class="modal">
+            <div style="padding: 24px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 12px;">
+                    <i class="fab fa-aws text-warning" style="font-size: 24px;"></i>
+                    company-invoice-bucket
+                    <span class="badge bg-danger">CRITICAL</span>
+                </h3>
+                <i class="fas fa-times" onclick="closeModal()" style="cursor: pointer; font-size: 20px; color: #666;"></i>
+            </div>
+            
+            <div class="modal-tabs">
+                <div class="mtab active" onclick="switchTab('tab-comp', this)">Compliance Checks</div>
+                <div class="mtab" onclick="switchTab('tab-policy', this)">Bucket Policy (JSON)</div>
+            </div>
+
+            <div style="padding: 24px; overflow-y: auto; flex: 1;">
+                <div id="tab-comp" class="tab-content active">
+                    <div style="background: #111; border: 1px solid #333; border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: white;">Block Public Access</strong>
+                            <div style="font-size: 12px; color: var(--text-muted);">Prevent internet visibility (PCI DSS)</div>
+                        </div>
+                        <span class="badge bg-danger" id="status-pub">FAILED</span>
+                    </div>
+                    <div style="background: #111; border: 1px solid #333; border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: white;">Versioning</strong>
+                            <div style="font-size: 12px; color: var(--text-muted);">Ransomware recovery</div>
+                        </div>
+                        <span class="badge bg-danger" id="status-ver">DISABLED</span>
+                    </div>
+                </div>
+
+                <div id="tab-policy" class="tab-content" style="display: none;">
+                    <div style="font-family: var(--font-code); background: #000; padding: 16px; border-radius: 8px; border: 1px solid #333; color: #a5b3ce; font-size: 13px; line-height: 1.6;" id="json-code">
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicRead",
+      "Effect": "Allow",
+      <span style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 2px;">"Principal": "*",</span>
+      "Action": ["s3:GetObject"],
+      "Resource": "arn:aws:s3:::company-invoice-bucket/*"
+    }
+  ]
+}
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding: 24px; border-top: 1px solid #333; display: flex; justify-content: flex-end; gap: 12px; background: #121215;">
+                <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-danger" onclick="fixBucket()" id="btn-fix"><i class="fas fa-magic"></i> Auto-Remediate</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Navigation
+        function nav(id, el) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            el.classList.add('active');
+            
+            const titles = {'dashboard':'Security Dashboard', 'policies':'Global Policies', 's3':'S3 Inventory', 'automation':'DevSecOps Pipeline'};
+            document.getElementById('page-title').innerText = titles[id];
+        }
+
+        // Charts
+        const ctxRegion = document.getElementById('regionChart').getContext('2d');
+        new Chart(ctxRegion, {
+            type: 'doughnut',
+            data: { labels: ['AWS', 'Azure'], datasets: [{ data: [64, 36], backgroundColor: ['#FF9900', '#007FFF'], borderWidth: 0 }] },
+            options: { cutout: '75%', plugins: { legend: { display: false } } }
+        });
+
+        // S3 Modal Logic
+        const modal = document.getElementById('modal');
+        function openModal() {
+            // Reset state
+            document.getElementById('status-pub').className = 'badge bg-danger';
+            document.getElementById('status-pub').innerText = 'FAILED';
+            document.getElementById('status-ver').className = 'badge bg-danger';
+            document.getElementById('status-ver').innerText = 'DISABLED';
+            document.getElementById('json-code').innerHTML = `{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicRead",
+      "Effect": "Allow",
+      <span style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 2px;">"Principal": "*",</span>
+      "Action": ["s3:GetObject"],
+      "Resource": "arn:aws:s3:::company-invoice-bucket/*"
+    }
+  ]
+}`;
+            document.getElementById('btn-fix').innerHTML = '<i class="fas fa-magic"></i> Auto-Remediate';
+            document.getElementById('btn-fix').className = 'btn btn-danger';
+            modal.style.display = 'flex';
+        }
+        function closeModal() { modal.style.display = 'none'; }
+        
+        function switchTab(id, el) {
+            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+            document.querySelectorAll('.mtab').forEach(t => t.classList.remove('active'));
+            document.getElementById(id).style.display = 'block';
+            el.classList.add('active');
+        }
+
+        function fixBucket() {
+            const btn = document.getElementById('btn-fix');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fixing...';
+            setTimeout(() => {
+                document.getElementById('status-pub').className = 'badge bg-success';
+                document.getElementById('status-pub').innerText = 'BLOCKED';
+                document.getElementById('status-ver').className = 'badge bg-success';
+                document.getElementById('status-ver').innerText = 'ENABLED';
+                document.getElementById('json-code').innerHTML = `{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SecureAccess",
+      "Effect": "Allow",
+      <span style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7; padding: 2px;">"Principal": {"AWS": "arn:role/App"},</span>
+      "Action": ["s3:GetObject"],
+      "Resource": "arn:aws:s3:::company-invoice-bucket/*"
+    }
+  ]
+}`;
+                btn.className = 'btn btn-primary';
+                btn.innerHTML = '<i class="fas fa-check"></i> Fixed';
+            }, 1500);
+        }
+
+        // Pipeline Logic
+        function runPipeline(mode) {
+            const term = document.getElementById('terminal');
+            const nodes = ['node-commit', 'node-build', 'node-scan', 'node-deploy'];
+            const bar = document.getElementById('pipe-bar');
+            
+            // Reset
+            term.innerHTML = '';
+            bar.style.width = '0%';
+            bar.style.background = '#10b981';
+            nodes.forEach(n => document.getElementById(n).className = 'pipe-node');
+
+            const logs = mode === 'pass' ? [
+                {t:500, n:0, msg:"> git commit -m 'fix: secure s3 bucket'", c:25},
+                {t:1500, n:1, msg:"> terraform plan (3 to add, 0 to destroy)", c:50},
+                {t:2500, n:2, msg:"> checkov -f tfplan", c:75},
+                {t:3000, n:2, msg: "[PASS] No vulnerabilities found.", c:75, color:'#34d399'},
+                {t:4000, n:3, msg: "> terraform apply -auto-approve", c:100},
+                {t:5000, n:3, msg: "[SUCCESS] Infrastructure deployed.", c:100, color:'#34d399'}
+            ] : [
+                {t:500, n:0, msg:"> git commit -m 'feat: add public bucket'", c:25},
+                {t:1500, n:1, msg:"> terraform plan", c:50},
+                {t:2500, n:2, msg:"> checkov -f tfplan", c:75},
+                {t:3000, n:2, msg: "[FAIL] CKV_AWS_20: S3 Bucket is Public!", c:75, color:'#f87171'},
+                {t:3500, n:2, msg: "Security Gate: PIPELINE STOPPED.", c:75, color:'#f87171', fail:true}
+            ];
+
+            logs.forEach(l => {
+                setTimeout(() => {
+                    const ts = new Date().toLocaleTimeString('en-US', {hour12:false});
+                    term.innerHTML += `<div class="log"><span class="log-ts">[${ts}]</span><span style="color:${l.color||'#ccc'}">${l.msg}</span></div>`;
+                    term.scrollTop = term.scrollHeight;
+                    
+                    if (l.n !== undefined) {
+                        document.getElementById(nodes[l.n]).classList.add('active');
+                        if (l.n > 0) document.getElementById(nodes[l.n-1]).classList.add('done');
+                    }
+                    if (l.c) bar.style.width = l.c + '%';
+                    if (l.fail) {
+                        document.getElementById(nodes[l.n]).classList.add('error');
+                        bar.style.background = '#ef4444';
+                    } else if (l.c === 100) {
+                        document.getElementById(nodes[l.n]).classList.add('done');
+                    }
+                }, l.t);
+            });
+        }
+    </script>
+</body>
+</html>
