@@ -1,0 +1,20 @@
+name: IaC Security Check
+
+on:
+  pull_request:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tfsec & Run tfsec
+        run: |
+          # Fails the build if any High or Critical issues are found in the Terraform code
+          tfsec --min-severity HIGH . 
+      - name: Run Cloud Custodian (dry-run)
+        run: |
+          pip install c7n
+          # Simulates the runtime policy enforcement against the IaC
+          custodian run --dryrun --output-dir=output policies/
+# Result: Pipeline failure blocks the Pull Request merge until security issues are resolved.
